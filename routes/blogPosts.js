@@ -28,7 +28,7 @@ const storage = new CloudinaryStorage({
 });
 const uploads = multer({ storage: storage });
 
-router.post('/upload', uploads.single('image'), async (req, res) => {
+router.post('/upload', imagePost.single('cover'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'Nessuna immagine caricata' });
@@ -36,7 +36,7 @@ router.post('/upload', uploads.single('image'), async (req, res) => {
     
     const imageUrl = req.file.path;
     
-    return res.status(200).json({ imageUrl });
+    return res.status(200).json({ cover:imageUrl });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: 'Errore interno del server' });
@@ -57,7 +57,7 @@ router.get('/blogPosts/title', async (req, res) => {
         if (!postByTitle || postByTitle.length <= 0) {
             return res.status(404).send({
                 statusCode: 404,
-                message: `Post with title ${postTitle} doesen't exist!`
+                message: `Post with title ${postTitle} doesn't exist!`
             })
         }
 
@@ -103,7 +103,7 @@ router.post('/blogPosts/internalUpload', uploads.single('cover'), async (req, re
     const newPost = new BlogPostModel({
         category: req.body.category,
         title: req.body.title,
-        cover: `http://localhost:5050/${path}`,
+        cover: `${process.env.SERVER_BASE_URL}`,
         readTime: {
             value: req.body.readTimeValue,
             unit: req.body.readTimeUnit
