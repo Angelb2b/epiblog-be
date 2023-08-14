@@ -43,7 +43,7 @@ github.get('/auth/github', passport.authenticate('github', { scope: ['user:email
     res.redirect(redirectUrl);
 })
 
-github.get('/auth/github/callback', passport.authenticate('github', {failureRedirect: '/'}), (req, res) => {
+github.get('/auth/github/callback', passport.authenticate('github', {failureRedirect: '/login'}), (req, res) => {
     const {user} = req
 
     const token = jwt.sign(user, process.env.JWT_SECRET)
@@ -54,7 +54,7 @@ github.get('/auth/github/callback', passport.authenticate('github', {failureRedi
 })
 
 github.get('/success', (req, res) => {
-    res.redirect(`${process.env.GITHUB_REDIRECT_URL}`)
+    res.redirect(`${process.env.GITHUB_REDIRECT_URL}/`)
 })
 
 module.exports = github
