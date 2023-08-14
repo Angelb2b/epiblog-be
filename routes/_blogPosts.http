@@ -1,0 +1,70 @@
+GET http://localhost:5050/blogPosts
+
+#####
+
+POST http://localhost:5050/blogPosts HTTP/1.1
+Content-Type: application/json
+
+{
+    "category": "New Anime",
+    "title": "Attack on Titan, finalmente siamo giunti alla fine",
+    "cover": "https://sm.ign.com/t/ign_it/news/e/even-attac/even-attack-on-titans-english-voice-actors-dont-know-how-it_6rht.1280.jpg",
+    "readTime": {
+        "value":"7",
+        "unit": "min"
+    },
+    "author": "64bd76f78957344ee68ac467",
+    "content": "L’inizio di Attack on Titan: The final season è andato in scena ieri, quando il primo dei due maxi episodi in cui è diviso il finale de L’Attacco dei Giganti 4  ha debuttato su NHK in Giappone e su Crunchyroll e Amazon Prime Video nel resto del mondo. In concomitanza con la trasmissione di questa puntata speciale della durata di 60 minuti è stato anche annunciato il periodo in cui si concluderà definitivamente l’anime tratto dal manga dark fantasy Shingeki no kyojin di Hajime Isayama. Come già ipotizzato ci sarà una lunga pausa tra i due cour conclusivi della quarta e ultima stagione, visto che l’episodio finale de L’Attacco dei Giganti arriverà il prossimo autunno, con una data ancora imprecisata tra ottobre e dicembre 2023."
+}
+
+#####
+
+PATCH http://localhost:5050/blogPosts/64afd1d3d39485d454c0a8bc HTTP/1.1
+Content-Type: application/json
+
+{"author": {
+        "name":"Lillo",
+        "avatar": "LL"
+    }
+}
+
+#####
+DELETE 05 64bc11449914c3892e0c7487
+
+#####
+GET http://localhost:5050/blogPosts/64bad18f5326a7ec25e1c79a
+
+#####
+GET http://localhost:5050/blogPosts/title?postTitle=magnus
+
+##### GET COMMENTS BY POST ID
+GET http://localhost:5050/blogPosts/64bbfee5b10cd818bce0a5e3/comments
+
+##### POST COMMENT
+POST http://localhost:5050/blogPosts/64c555a46c141e533ca89578/newComment HTTP/1.1
+Content-Type: application/json
+
+{
+    "author": "64c54f776c141e533ca894fd",
+    "title": "Grande Shinji",
+    "content": "Questo anime senza Ichigo è più bello!",
+    "rate": 5
+}
+
+##### GET COMMENT BY ID FROM POST ID
+GET http://localhost:5050/blogPosts/64bad18f5326a7ec25e1c79a/comments/64bad1b95326a7ec25e1c7a3
+
+##### DELETE COMMENT BY ID FROM POST BY ID
+DELETE http://localhost:5050/blogPosts/64bc11449914c3892e0c7487/deleteComment/64bc115c9914c3892e0c748c
+
+#####
+PATCH http://localhost:5050/blogPosts/64bc10e89914c3892e0c747c/patchComment/64bc11009914c3892e0c7481 HTTP/1.1
+Content-Type: application/json
+
+{
+    "title": "GOLDEN WIND"
+}
+
+
+
+

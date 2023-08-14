@@ -1,0 +1,22 @@
+GET http://localhost:5050/resources
+
+
+##### isActive
+GET http://localhost:5050/resources/isActive
+
+##### no query, error
+GET http://localhost:5050/resources/olderThen
+
+##### age>26
+GET http://localhost:5050/resources/olderThen?ageA=26
+
+##### 26<age<30
+GET http://localhost:5050/resources/olderThen?ageA=26&ageB=30
+
+##### eye color green or blue
+GET http://localhost:5050/resources/eyeColor?color1=Green&color2=Blue
+
+##### eye color not green
+GET http://localhost:5050/resources/notEyeColor?color=green
+##### eye color not green
+GET http://localhost:5050/resources/company?name=FITCORE
