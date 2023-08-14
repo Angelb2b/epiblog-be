@@ -97,39 +97,47 @@ router.get('/blogPosts', async (req, res) => {
 
 //!POST
 router.post('/blogPosts/internalUpload', uploads.single('cover'), async (req, res) => {
-    const user = await authorModel.findById(req.body.author)
-    console.log(req.file)
-    const path = req.file.path.replaceAll("\\", '/')
-    const newPost = new BlogPostModel({
-        category: req.body.category,
-        title: req.body.title,
-        cover: `${process.env.SERVER_BASE_URL}`,
-        readTime: {
-            value: req.body.readTimeValue,
-            unit: req.body.readTimeUnit
-        },
-        author: user,
-        content: req.body.content
-    })
-
     try {
-        const blogPost = await newPost.save()
+        // Se l'immagine non viene caricata correttamente
+        if(!req.file) {
+            return res.status(400).json({message: "L'upload dell'immagine non è riuscito"});
+        }
+
+        const user = await authorModel.findById(req.body.author)
+
+        // Utilizziamo l'url ritornato da cloudinary
+        let coverURL = req.file.path;
+
+        const newPost = new BlogPostModel({
+            category: req.body.category,
+            title: req.body.title,
+            cover: coverURL, // utilizziamo l'url dell'immagine caricata su cloudinary
+            readTime: {
+                value: req.body.readTimeValue,
+                unit: req.body.readTimeUnit
+            },
+            author: user,
+            content: req.body.content
+        });
+
+        const blogPost = await newPost.save();
         await authorModel.updateOne({_id: user}, {$push: {posts: newPost}})
 
         res.status(201).send({
             img: req.file.path,
             statusCode: 201,
-            message: 'Post saved successfully',
+            message: 'Post salvato con successo',
             payload: blogPost
         })
     } catch (error) {
         res.status(500).send({
             statusCode: 500,
-            message: "Internal server error",
-            error,
+            message: "Errore interno del server",
+            error
         })
     }
-})
+});
+
 
 //!PATCH
 router.patch('/blogPosts/:id', async (req, res) => {
