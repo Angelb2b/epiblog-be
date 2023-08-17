@@ -5,6 +5,7 @@ const GithubStrategy = require('passport-github2');
 require('dotenv').config();
 
 const app = express();
+const githubRouter = express.Router();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -33,22 +34,22 @@ passport.use(
   )
 );
 
-app.get('/auth/github', passport.authenticate('github', { scope: ['user:email'] }));
+githubRouter.get('/auth/github', passport.authenticate('github', { scope: ['user:email'] }));
 
-app.get(
+githubRouter.get(
   '/auth/github/callback',
   passport.authenticate('github', { failureRedirect: '/login' }),
   (req, res) => {
     const { accessToken, profile } = req.user;
-
     const token = jwt.sign({ accessToken, profile }, process.env.JWT_SECRET);
-
     res.redirect(`${process.env.REDIRECT_URL}?token=${encodeURIComponent(token)}`);
   }
 );
 
+app.use(githubRouter);
+
 app.get('/protected', (req, res) => {
-    const token = req.query.token;
+  const token = req.query.token;
 
   if (!token) {
     return res.status(401).json({ message: 'Token di accesso mancante' });
@@ -56,12 +57,13 @@ app.get('/protected', (req, res) => {
 
   try {
     const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
-
     const { accessToken, profile } = decodedToken;
-
     res.json({ accessToken, profile });
   } catch (error) {
     res.status(403).json({ message: 'Token di accesso non valido o scaduto' });
   }
 });
 
+app.listen(3000, () => {
+  console.log('Server avviato sulla porta 3000');
+});
