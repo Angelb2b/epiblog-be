@@ -1,23 +1,4 @@
-const express = require('express')
-const mongoose = require('mongoose')
-const BlogPostModel = require('../models/blogPostModel');
-const { postBodyParams, validatePostBody } = require('../Validators/blogPostValidator');
-const authorModel = require('../models/authorModel');
-const commentsModel = require('../models/commentsModel');
-const imagePost = require ('../middleware/uploadImg')
 
-const multer = require('multer')
-const cloudinary = require("cloudinary").v2
-const {CloudinaryStorage} = require("multer-storage-cloudinary")
-const crypto = require('crypto')
-
-const router = express.Router();
-
-cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
-});
 
 /* const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
@@ -26,96 +7,125 @@ cloudinary.config({
     allowed_formats: ['jpg', 'jpeg', 'png'] 
   }
 }); */
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-      cb(null, 'uploads/');
-    },
-    filename: function (req, file, cb) {
-      cb(null, file.fieldname + '-' + Date.now());
+const express = require('express');
+const mongoose = require('mongoose');
+const BlogPostModel = require('../models/blogPostModel');
+const { postBodyParams, validatePostBody } = require('../Validators/blogPostValidator');
+const authorModel = require('../models/authorModel');
+const commentsModel = require('../models/commentsModel');
+const imagePost = require('../middleware/uploadImg');
+const fs = require('fs');
+const path = require('path');
+
+const multer = require('multer');
+const cloudinary = require("cloudinary").v2;
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
+const crypto = require('crypto');
+
+const app = express();
+const router = express.Router();
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'blog-posts',
+    allowed_formats: ['jpg', 'jpeg', 'png']
+  }
+});
+
+const uploads = multer({ storage: storage });
+
+app.post('/blogPosts/internalUpload', uploads.single('cover'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "L'upload dell'immagine non è riuscito" });
     }
-  });
-  
-  const uploads = multer({ storage: storage });
-  
-  router.post('/blogPosts/internalUpload', uploads.single('cover'), async (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ message: "L'upload dell'immagine non è riuscito" });
-      }
-  
-      const user = await authorModel.findById(req.body.author)
-  
-      const imageBuffer = fs.readFileSync(path.join(__dirname, '../uploads/', req.file.filename));
-  
-      const result = await cloudinary.uploader.upload_stream({
-        resource_type: 'image',
-        public_id: req.file.filename.split('.')[0],
-        format: req.file.filename.split('.')[1]
-      }, (error, result) => {
-        if (error) throw new Error(error);
-        else return result;
-      }).end(imageBuffer);
-  
-      let coverURL = result.url;
-  
-      const newPost = new BlogPostModel({
-        category: req.body.category,
-        title: req.body.title,
-        cover: coverURL, 
-        readTime: {
-          value: req.body.readTimeValue,
-          unit: req.body.readTimeUnit
-        },
-        author: user,
-        content: req.body.content
-      });
-  
-      const blogPost = await newPost.save();
-      await authorModel.updateOne({ _id: user }, { $push: { posts: newPost } })
-  
-      fs.unlinkSync(path.join(__dirname, '../uploads/', req.file.filename));
-  
-      res.status(201).send({
-        img: req.file.path,
-        statusCode: 201,
-        message: 'Post salvato con successo',
-        payload: blogPost
-      })
-    } catch (error) {
-      res.status(500).send({
-        statusCode: 500,
-        message: "Errore interno del server",
-        error
-      })
-    }
-  });
+
+    const user = await authorModel.findById(req.body.author);
+
+    const newPost = new BlogPostModel({
+      category: req.body.category,
+      title: req.body.title,
+      cover: req.file.path, // Utilizza l'URL del file caricato sul server come URL della copertina
+      readTime: {
+        value: req.body.readTimeValue,
+        unit: req.body.readTimeUnit
+      },
+      author: user,
+      content: req.body.content
+    });
+
+    const blogPost = await newPost.save();
+    await authorModel.updateOne({ _id: user }, { $push: { posts: newPost } });
+
+    fs.unlinkSync(path.join(__dirname, '../uploads/', req.file.filename));
+
+    res.status(201).send({
+      img: req.file.path,
+      statusCode: 201,
+      message: 'Post salvato con successo',
+      payload: blogPost
+    });
+  } catch (error) {
+    res.status(500).send({
+      statusCode: 500,
+      message: "Errore interno del server",
+      error
+    });
+  }
+});
 
 router.get('/blogPosts/title', async (req, res) => {
-    const { postTitle } = req.query;
+  const { postTitle } = req.query;
 
-    try {
-        const postByTitle = await BlogPostModel.find({
-            title: {
-                $regex: '.*' + postTitle + '.*',
-                $options: 'i'
-            }
-        })
+  try {
+    const postByTitle = await BlogPostModel.find({
+      title: {
+        $regex: '.*' + postTitle + '.*',
+        $options: 'i'
+      }
+    });
 
-        if (!postByTitle || postByTitle.length <= 0) {
-            return res.status(404).send({
-                statusCode: 404,
-                message: `Post with title ${postTitle} doesn't exist!`
-            })
-        }
+    if (!postByTitle || postByTitle.length <= 0) {
+      return res.status(404).send({
+        statusCode: 404,
+        message: `Post with title ${postTitle} doesn't exist!`
+      });
+    }
 
-        res.status(200).send({
-            statusCode: 200,
-            postByTitle,
-        })
-    } catch (error) {
-        res.status(500).send({
-            statusCode: 500,
-            message: 'Internal server Error',
+    res.status(200).send({
+      statusCode: 200,
+      postByTitle,
+    });
+  } catch (error) {
+    res.status(500).send({
+      statusCode: 500,
+      message: 'Internal server Error',
+      error,
+    });
+  }
+});
+
+router.get('/blogPosts', async (req, res) => {
+  try {
+    const blogPosts = await BlogPostModel.find()
+      .populate("author", "name surname avatar")
+      .populate("comments", "title content rate");
+
+    res.status(200).send({
+      statusCode: 200,
+      blogPosts: blogPosts
+    });
+  } catch (error) {
+    res.status(500).send({
+      statusCode: 500,
+      message: 'Internal server Error',
             error,
         })
     }
