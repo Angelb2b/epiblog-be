@@ -1,21 +1,16 @@
 const express = require('express');
-const github = express.Router();
-const passport = require('passport');
-const session = require('express-session');
 const jwt = require('jsonwebtoken');
-const GithubStrategy = require('passport-github2').Strategy;
-require("dotenv").config();
+const passport = require('passport');
+const GithubStrategy = require('passport-github2');
+require('dotenv').config();
 
-github.use(
-  session({
-    secret: process.env.GITHUB_SECRET,
-    resave: false,
-    saveUninitialized: false,
-  })
-);
+const app = express();
 
-github.use(passport.initialize());
-github.use(passport.session());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+app.use(passport.initialize());
+app.use(passport.session());
 
 passport.serializeUser((user, done) => {
   done(null, user);
@@ -29,37 +24,44 @@ passport.use(
   new GithubStrategy(
     {
       clientID: process.env.GITHUB_CLIENT_ID,
-      clientSecret: process.env.GITHUB_SECRET,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET,
       callbackURL: process.env.GITHUB_CALLBACK_URL,
     },
     (accessToken, refreshToken, profile, done) => {
-      return done(null, profile);
+      return done(null, { accessToken, profile });
     }
   )
 );
 
-github.get(
-  '/auth/github',
-  passport.authenticate('github', { scope: ['user:email'] })
-);
+app.get('/auth/github', passport.authenticate('github', { scope: ['user:email'] }));
 
-github.get(
+app.get(
   '/auth/github/callback',
   passport.authenticate('github', { failureRedirect: '/login' }),
   (req, res) => {
-    const { user } = req;
+    const { accessToken, profile } = req.user;
 
-    const token = jwt.sign(user, process.env.JWT_SECRET);
-    const redirectUrl = `${process.env.GITHUB_REDIRECT_URL}/success/${encodeURIComponent(
-      token
-    )}`;
+    const token = jwt.sign({ accessToken, profile }, process.env.JWT_SECRET);
 
-    res.redirect(redirectUrl);
+    res.redirect(`${process.env.REDIRECT_URL}?token=${encodeURIComponent(token)}`);
   }
 );
 
-github.get('/success', (req, res) => {
-  res.redirect(`${process.env.GITHUB_REDIRECT_URL}/`);
+app.get('/protected', (req, res) => {
+    const token = req.query.token;
+
+  if (!token) {
+    return res.status(401).json({ message: 'Token di accesso mancante' });
+  }
+
+  try {
+    const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+
+    const { accessToken, profile } = decodedToken;
+
+    res.json({ accessToken, profile });
+  } catch (error) {
+    res.status(403).json({ message: 'Token di accesso non valido o scaduto' });
+  }
 });
 
-module.exports = github;
