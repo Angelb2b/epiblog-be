@@ -1,14 +1,12 @@
 const express = require('express');
+const github = express.Router();
 const passport = require('passport');
 const session = require('express-session');
 const jwt = require('jsonwebtoken');
-const GithubStrategy = require('passport-github2');
+const GithubStrategy = require('passport-github').Strategy;
+require("dotenv").config();
 
-require('dotenv').config();
-
-const app = express();
-
-app.use(
+github.use(
   session({
     secret: process.env.GITHUB_SECRET,
     resave: false,
@@ -16,8 +14,8 @@ app.use(
   })
 );
 
-app.use(passport.initialize());
-app.use(passport.session());
+github.use(passport.initialize());
+github.use(passport.session());
 
 passport.serializeUser((user, done) => {
   done(null, user);
@@ -40,22 +38,28 @@ passport.use(
   )
 );
 
-app.get('/auth/github', passport.authenticate('github', { scope: ['user:email'] }), (req, res) => {
-  const redirectUrl = `${process.env.GITHUB_REDIRECT_URL}/success?user=${encodeURIComponent(JSON.stringify(req.user))}`;
-  res.redirect(redirectUrl);
-});
+github.get(
+  '/auth/github',
+  passport.authenticate('github', { scope: ['user:email'] })
+);
 
-app.get('/auth/github/callback', passport.authenticate('github', { failureRedirect: '/login' }), (req, res) => {
-  const { user } = req;
+github.get(
+  '/auth/github/callback',
+  passport.authenticate('github', { failureRedirect: '/login' }),
+  (req, res) => {
+    const { user } = req;
 
-  const token = jwt.sign(user, process.env.JWT_SECRET);
-  const redirectUrl = `${process.env.GITHUB_REDIRECT_URL}/success/${encodeURIComponent(token)}`;
+    const token = jwt.sign(user, process.env.JWT_SECRET);
+    const redirectUrl = `${process.env.GITHUB_REDIRECT_URL}/success/${encodeURIComponent(
+      token
+    )}`;
 
-  res.redirect(redirectUrl);
-});
+    res.redirect(redirectUrl);
+  }
+);
 
-app.get('/success', (req, res) => {
+github.get('/success', (req, res) => {
   res.redirect(`${process.env.GITHUB_REDIRECT_URL}/`);
 });
 
-module.exports = app;
+module.exports = github;
