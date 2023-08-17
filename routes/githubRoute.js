@@ -1,11 +1,10 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const passport = require('passport');
-const GithubStrategy = require('passport-github2');
+const GithubStrategy = require('passport-github');
 require('dotenv').config();
 
 const app = express();
-const githubRouter = express.Router();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -34,19 +33,19 @@ passport.use(
   )
 );
 
-githubRouter.get('/auth/github', passport.authenticate('github', { scope: ['user:email'] }));
+app.get('/auth/github', passport.authenticate('github'));
 
-githubRouter.get(
+app.get(
   '/auth/github/callback',
   passport.authenticate('github', { failureRedirect: '/login' }),
   (req, res) => {
     const { accessToken, profile } = req.user;
+
     const token = jwt.sign({ accessToken, profile }, process.env.JWT_SECRET);
+
     res.redirect(`${process.env.REDIRECT_URL}?token=${encodeURIComponent(token)}`);
   }
 );
-
-app.use(githubRouter);
 
 app.get('/protected', (req, res) => {
   const token = req.query.token;
@@ -57,7 +56,9 @@ app.get('/protected', (req, res) => {
 
   try {
     const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+
     const { accessToken, profile } = decodedToken;
+
     res.json({ accessToken, profile });
   } catch (error) {
     res.status(403).json({ message: 'Token di accesso non valido o scaduto' });
