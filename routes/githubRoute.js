@@ -1,7 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const passport = require('passport');
-const GithubStrategy = require('passport-github');
+const GithubStrategy = require('passport-github2');
 require('dotenv').config();
 
 const app = express();
