@@ -19,29 +19,76 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-const storage = new CloudinaryStorage({
+/* const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
     folder: 'blog-posts', 
     allowed_formats: ['jpg', 'jpeg', 'png'] 
   }
-});
-const uploads = multer({ storage: storage });
-
-router.post('/upload', imagePost.single('cover'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ message: 'Nessuna immagine caricata' });
+}); */
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+      cb(null, 'uploads/');
+    },
+    filename: function (req, file, cb) {
+      cb(null, file.fieldname + '-' + Date.now());
     }
-    
-    const imageUrl = req.file.path;
-    
-    return res.status(200).json({ cover:imageUrl });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: 'Errore interno del server' });
-  }
-});
+  });
+  
+  const uploads = multer({ storage: storage });
+  
+  router.post('/blogPosts/internalUpload', uploads.single('cover'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "L'upload dell'immagine non è riuscito" });
+      }
+  
+      const user = await authorModel.findById(req.body.author)
+  
+      const imageBuffer = fs.readFileSync(path.join(__dirname, '../uploads/', req.file.filename));
+  
+      const result = await cloudinary.uploader.upload_stream({
+        resource_type: 'image',
+        public_id: req.file.filename.split('.')[0],
+        format: req.file.filename.split('.')[1]
+      }, (error, result) => {
+        if (error) throw new Error(error);
+        else return result;
+      }).end(imageBuffer);
+  
+      let coverURL = result.url;
+  
+      const newPost = new BlogPostModel({
+        category: req.body.category,
+        title: req.body.title,
+        cover: coverURL, 
+        readTime: {
+          value: req.body.readTimeValue,
+          unit: req.body.readTimeUnit
+        },
+        author: user,
+        content: req.body.content
+      });
+  
+      const blogPost = await newPost.save();
+      await authorModel.updateOne({ _id: user }, { $push: { posts: newPost } })
+  
+      fs.unlinkSync(path.join(__dirname, '../uploads/', req.file.filename));
+  
+      res.status(201).send({
+        img: req.file.path,
+        statusCode: 201,
+        message: 'Post salvato con successo',
+        payload: blogPost
+      })
+    } catch (error) {
+      res.status(500).send({
+        statusCode: 500,
+        message: "Errore interno del server",
+        error
+      })
+    }
+  });
 
 router.get('/blogPosts/title', async (req, res) => {
     const { postTitle } = req.query;
@@ -98,20 +145,18 @@ router.get('/blogPosts', async (req, res) => {
 //!POST
 router.post('/blogPosts/internalUpload', uploads.single('cover'), async (req, res) => {
     try {
-        // Se l'immagine non viene caricata correttamente
         if(!req.file) {
             return res.status(400).json({message: "L'upload dell'immagine non è riuscito"});
         }
 
         const user = await authorModel.findById(req.body.author)
 
-        // Utilizziamo l'url ritornato da cloudinary
         let coverURL = req.file.path;
 
         const newPost = new BlogPostModel({
             category: req.body.category,
             title: req.body.title,
-            cover: coverURL, // utilizziamo l'url dell'immagine caricata su cloudinary
+            cover: coverURL, 
             readTime: {
                 value: req.body.readTimeValue,
                 unit: req.body.readTimeUnit
